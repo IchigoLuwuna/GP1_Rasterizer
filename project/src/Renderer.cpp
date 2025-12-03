@@ -173,6 +173,7 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Camera& camera, const Matr
 
 #ifdef PARALLEL_RASTERIZE
 		std::vector<std::pair<int, int>> pixelIndices{};
+		pixelIndices.reserve( ( pixelBoundsBottom - pixelBoundsTop ) * ( pixelBoundsRight - pixelBoundsLeft ) );
 		for ( int px{ pixelBoundsLeft }; px < pixelBoundsRight; ++px )
 		{
 			for ( int py{ pixelBoundsTop }; py < pixelBoundsBottom; ++py )
@@ -264,7 +265,7 @@ void Renderer::Project( const std::vector<Vertex>& verticesIn,
 #ifndef PARALLEL_PROJECT
 	for ( const auto& vertexIndex : vertexIndices )
 	{
-		project( vertexIndex );
+		projectVertex( vertexIndex );
 	}
 #endif
 }
