@@ -53,15 +53,21 @@ int main( int argc, char* args[] )
 		return 1;
 
 	// Initialize "framework"
+	Timer timer{};
+	Renderer renderer{ pWindow };
+
+	/*
+	Why was this on the heap????????
 	const auto pTimer = new Timer();
 	const auto pRenderer = new Renderer( pWindow );
+	*/
 
 	// Initialize scene
 	auto upScene{ std::make_unique<SceneW4>() };
 	upScene->Initialize();
 
 	// Start loop
-	pTimer->Start();
+	timer.Start();
 
 	// Start Benchmark
 	// TODO pTimer->StartBenchmark();
@@ -88,36 +94,32 @@ int main( int argc, char* args[] )
 		}
 
 		//--------- Update ---------
-		upScene->Update( pTimer );
-		pRenderer->Update( pTimer );
+		upScene->Update( &timer );
+		renderer.Update( &timer );
 
 		//--------- Render ---------
-		pRenderer->Render( upScene.get() );
+		renderer.Render( upScene.get() );
 
 		//--------- Timer ---------
-		pTimer->Update();
-		printTimer += pTimer->GetElapsed();
+		timer.Update();
+		printTimer += timer.GetElapsed();
 		if ( printTimer >= 1.f )
 		{
 			printTimer = 0.f;
-			std::cout << "dFPS: " << pTimer->GetdFPS() << std::endl;
+			std::cout << "dFPS: " << timer.GetdFPS() << std::endl;
 		}
 
 		// Save screenshot after full render
 		if ( takeScreenshot )
 		{
-			if ( !pRenderer->SaveBufferToImage() )
+			if ( !renderer.SaveBufferToImage() )
 				std::cout << "Screenshot saved!" << std::endl;
 			else
 				std::cout << "Something went wrong. Screenshot not saved!" << std::endl;
 			takeScreenshot = false;
 		}
 	}
-	pTimer->Stop();
-
-	// Shutdown "framework"
-	delete pRenderer;
-	delete pTimer;
+	timer.Stop();
 
 	ShutDown( pWindow );
 	return 0;
