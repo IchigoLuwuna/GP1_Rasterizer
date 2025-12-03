@@ -116,17 +116,16 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Camera& camera, const Matr
 				projectedTriangle = Triangle_Out{ verticesOut[mesh.indices[index + 0]],
 												  verticesOut[mesh.indices[index + 2]],
 												  verticesOut[mesh.indices[index + 1]] };
-				projectedTriangle.pTexture = &mesh.texture;
 			}
 			else
 			{
 				projectedTriangle = Triangle_Out{ verticesOut[mesh.indices[index + 0]],
 												  verticesOut[mesh.indices[index + 1]],
 												  verticesOut[mesh.indices[index + 2]] };
-				projectedTriangle.pTexture = &mesh.texture;
 			}
 			break;
 		}
+		projectedTriangle.pTexture = &mesh.texture;
 
 		if ( IsCullable( projectedTriangle ) )
 		{
