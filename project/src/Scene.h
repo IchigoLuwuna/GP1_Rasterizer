@@ -4,6 +4,7 @@
 // Local includes
 #include "Camera.h"
 #include "DataTypes.h"
+#include "Shading.h"
 
 namespace dae
 {
@@ -22,6 +23,7 @@ public:
 
 	const Camera& GetCamera() const;
 	const std::vector<Mesh>& GetMeshes() const;
+	const std::vector<Light>& GetLights() const;
 
 	virtual void Update( Timer* pTimer );
 	virtual void Initialize() = 0;
@@ -29,6 +31,7 @@ public:
 protected:
 	Camera m_Camera{ {}, 0.f };
 	std::vector<Mesh> m_Meshes{};
+	std::vector<Light> m_Lights{};
 };
 
 class SceneW1 final : public Scene

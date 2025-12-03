@@ -26,6 +26,11 @@ const std::vector<Mesh>& Scene::GetMeshes() const
 	return m_Meshes;
 }
 
+const std::vector<Light>& Scene::GetLights() const
+{
+	return m_Lights;
+}
+
 void Scene::Update( Timer* pTimer )
 {
 	m_Camera.Update( pTimer );
