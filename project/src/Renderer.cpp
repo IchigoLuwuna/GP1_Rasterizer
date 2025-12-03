@@ -166,10 +166,10 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Camera& camera, const Matr
 														   static_cast<uint8_t>( finalColor.b * 255 ) );
 		} };
 
-		const int pixelBoundsLeft{ static_cast<int>( projectedTriangleBounds.left ) };
-		const int pixelBoundsRight{ static_cast<int>( projectedTriangleBounds.right ) };
-		const int pixelBoundsTop{ static_cast<int>( projectedTriangleBounds.top ) };
-		const int pixelBoundsBottom{ static_cast<int>( projectedTriangleBounds.bottom ) };
+		const int pixelBoundsLeft{ static_cast<int>( std::floor( projectedTriangleBounds.left ) ) };
+		const int pixelBoundsRight{ static_cast<int>( std::ceil( projectedTriangleBounds.right ) ) };
+		const int pixelBoundsTop{ static_cast<int>( std::floor( projectedTriangleBounds.top ) ) };
+		const int pixelBoundsBottom{ static_cast<int>( std::ceil( projectedTriangleBounds.bottom ) ) };
 
 #ifdef PARALLEL_RASTERIZE
 		std::vector<std::pair<int, int>> pixelIndices{};
