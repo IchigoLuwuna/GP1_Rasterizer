@@ -12,7 +12,7 @@
 #include "Shading.h"
 
 #define PARALLEL_PROJECT
-#define PARALLEL_RASTERIZE
+// #define PARALLEL_RASTERIZE
 
 using namespace dae;
 
@@ -66,7 +66,7 @@ void Renderer::Render( Scene* pScene )
 	const auto& meshes{ pScene->GetMeshes() };
 	for ( const auto& mesh : meshes )
 	{
-		RasterizeMesh( mesh, pScene->GetCamera(), worldToCamera );
+		RasterizeMesh( mesh, pScene, worldToCamera );
 	}
 
 	//@END
@@ -76,8 +76,10 @@ void Renderer::Render( Scene* pScene )
 	SDL_UpdateWindowSurface( m_pWindow );
 }
 
-void Renderer::RasterizeMesh( const Mesh& mesh, const Camera& camera, const Matrix& worldToCamera ) noexcept
+void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* scene, const Matrix& worldToCamera ) noexcept
 {
+	const Camera& camera{ scene->GetCamera() };
+
 	// PROJECTION
 	std::vector<VertexOut> verticesOut{};
 	Project( mesh.vertices, verticesOut, camera, mesh.worldMatrix, worldToCamera );
@@ -163,7 +165,7 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Camera& camera, const Matr
 			}
 			m_DepthBufferPixels[bufferIndex] = depthInterpolated;
 
-			ColorRGB finalColor{ GetPixelColor( projectedTriangle, baryCentricPosition ) };
+			ColorRGB finalColor{ GetPixelColor( projectedTriangle, baryCentricPosition, scene->GetLights() ) };
 
 			finalColor.MaxToOne();
 
@@ -275,39 +277,6 @@ void Renderer::Project( const std::vector<Vertex>& verticesIn,
 		projectVertex( vertexIndex );
 	}
 #endif
-}
-
-ColorRGB Renderer::ProcessPixel( int px, int py, const Triangle_Out& triangle ) noexcept
-{
-	ColorRGB finalColor{ -1.f, -1.f, -1.f };
-
-	Vector3 baryCentricPosition{};
-
-	if ( IsInPixel( triangle, px, py, baryCentricPosition ) )
-	{
-		const int pixelIndex{ px * m_Height + py };
-		const float depthInterpolated{ 1.f / ( ( 1.f / triangle.v0.position.z ) * baryCentricPosition.x +
-											   ( 1.f / triangle.v1.position.z ) * baryCentricPosition.y +
-											   ( 1.f / triangle.v2.position.z ) * baryCentricPosition.z ) };
-		const float viewSpaceDepthInterpolated{ 1.f / ( ( 1.f / triangle.v0.position.w ) * baryCentricPosition.x +
-														( 1.f / triangle.v1.position.w ) * baryCentricPosition.y +
-														( 1.f / triangle.v2.position.w ) * baryCentricPosition.z ) };
-		if ( depthInterpolated < m_DepthBufferPixels[pixelIndex] )
-		{
-			m_DepthBufferPixels[pixelIndex] = depthInterpolated;
-			const Vector2 uv{ Vector2{ triangle.v0.uv / triangle.v0.position.w * baryCentricPosition.x +
-									   triangle.v1.uv / triangle.v1.position.w * baryCentricPosition.y +
-									   triangle.v2.uv / triangle.v2.position.w * baryCentricPosition.z } *
-							  viewSpaceDepthInterpolated };
-
-			finalColor = triangle.pTexture->Sample( uv );
-		}
-	}
-
-	// Update Color in Buffer
-	finalColor.MaxToOne();
-
-	return finalColor;
 }
 
 bool Renderer::IsInPixel( const Triangle_Out& triangle, int px, int py, Vector3& baryCentricPosition ) noexcept

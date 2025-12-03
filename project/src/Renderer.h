@@ -43,13 +43,12 @@ private:
 	int m_Width{};
 	int m_Height{};
 
-	void RasterizeMesh( const Mesh& mesh, const Camera& camera, const Matrix& worldToCamera ) noexcept;
 	void Project( const std::vector<Vertex>& verticesIn,
 				  std::vector<VertexOut>& verticesOut,
 				  const Camera& camera,
 				  const Matrix& modelToWorld,
 				  const Matrix& worldToCamera ) const noexcept;
-	ColorRGB ProcessPixel( int px, int py, const Triangle_Out& triangle ) noexcept; // deprecated
+	void RasterizeMesh( const Mesh& mesh, const Scene* Scene, const Matrix& worldToCamera ) noexcept;
 	bool IsInPixel( const Triangle_Out& triangle, int px, int py, Vector3& baryCentricPosition ) noexcept;
 	bool IsCullable( const Triangle_Out& triangle );
 };
