@@ -19,6 +19,7 @@ class Renderer final
 {
 public:
 	Renderer( SDL_Window* pWindow );
+	~Renderer();
 
 	Renderer( const Renderer& ) = delete;
 	Renderer( Renderer&& ) noexcept = delete;
@@ -48,7 +49,7 @@ private:
 				  const Camera& camera,
 				  const Matrix& modelToWorld,
 				  const Matrix& worldToCamera ) const noexcept;
-	ColorRGB ProcessPixel( int px, int py, const Triangle_Out& triangle ) noexcept;
+	ColorRGB ProcessPixel( int px, int py, const Triangle_Out& triangle ) noexcept; // deprecated
 	bool IsInPixel( const Triangle_Out& triangle, int px, int py, Vector3& baryCentricPosition ) noexcept;
 	bool IsCullable( const Triangle_Out& triangle );
 };

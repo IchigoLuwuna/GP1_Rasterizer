@@ -25,8 +25,15 @@ Renderer::Renderer( SDL_Window* pWindow )
 	// Create Buffers
 	m_pFrontBuffer = SDL_GetWindowSurface( pWindow );
 	m_pBackBuffer = SDL_CreateRGBSurface( 0, m_Width, m_Height, 32, 0, 0, 0, 0 );
-	m_pBackBufferPixels = (uint32_t*)m_pBackBuffer->pixels;
+	m_pBackBufferPixels = reinterpret_cast<uint32_t*>( m_pBackBuffer->pixels );
 	m_DepthBufferPixels = std::vector<float>( m_Width * m_Height );
+}
+
+// The engine didn't actually come with any destructor so it was leaking memory :/
+Renderer::~Renderer()
+{
+	SDL_FreeSurface( m_pFrontBuffer );
+	SDL_FreeSurface( m_pBackBuffer );
 }
 
 void Renderer::Update( Timer* pTimer )
