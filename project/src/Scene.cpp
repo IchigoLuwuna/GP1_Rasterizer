@@ -112,7 +112,7 @@ void SceneW4::Initialize()
 
 	Mesh mesh{};
 	Utils::ParseOBJ( "./resources/tuktuk.obj", mesh.vertices, mesh.indices );
-	mesh.primitiveTopology = PrimitiveTopology::TriangleStrip;
+	mesh.primitiveTopology = PrimitiveTopology::TriangleList;
 
 	mesh.texture = Texture{ "./resources/tuktuk.png" };
 
