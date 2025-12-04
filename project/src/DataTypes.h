@@ -88,7 +88,7 @@ struct TriangleOut
 	const Texture* pTexture{};
 	const Texture* pNormalMap{};
 
-	Rectangle GetBounds()
+	Rectangle GetBounds() const
 	{
 		Rectangle rectangle{};
 		std::array<float, 3> axisContainer{};

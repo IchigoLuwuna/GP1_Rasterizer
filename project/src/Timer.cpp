@@ -3,6 +3,7 @@
 #include <numeric>
 #include <fstream>
 #include "SDL.h"
+#include <cfloat>
 using namespace dae;
 
 Timer::Timer()

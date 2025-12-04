@@ -110,19 +110,12 @@ void Camera::Update( Timer* pTimer )
 		Rotate( mouseX * radianConstant * sensitivity, 0.f );
 		Move( Matrix::CreateRotationX( m_TotalPitch )
 				  .TransformVector( Matrix::CreateRotationY( m_TotalYaw )
-										.TransformVector( Vector3::UnitZ * -mouseY * sensitivity * 0.1f ) ) );
+										.TransformVector( Vector3::UnitZ * -mouseY * sensitivity * 0.5f ) ) );
 	}
 
 	if ( ( mouseState & ( SDL_BUTTON_LMASK | SDL_BUTTON_RMASK ) ) == ( SDL_BUTTON_LMASK | SDL_BUTTON_RMASK ) )
 	{
-		Move(
-			Matrix::CreateRotationX( m_TotalPitch )
-				.TransformVector(
-					Matrix::CreateRotationY( m_TotalYaw ).TransformVector( Vector3::UnitX * -mouseX * sensitivity ) ) );
-		Move(
-			Matrix::CreateRotationX( m_TotalPitch )
-				.TransformVector(
-					Matrix::CreateRotationY( m_TotalYaw ).TransformVector( Vector3::UnitY * mouseY * sensitivity ) ) );
+		Move( Matrix::CreateRotationY( m_TotalYaw ).TransformVector( Vector3::UnitY * mouseY * sensitivity ) );
 	}
 
 	// Update ONB if needed
