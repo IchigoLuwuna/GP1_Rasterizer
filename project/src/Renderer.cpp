@@ -1,18 +1,13 @@
 // External includes
 #include <cassert>
-#include <cmath>
 #include <execution>
-#include <limits>
+#include <SDL_keyboard.h>
 
 // Project includes
 #include "Renderer.h"
-#include "ColorRGB.h"
-#include "DataTypes.h"
 #include "Scene.h"
-#include "Shading.h"
 
-#define PARALLEL_PROJECT
-//  #define PARALLEL_RASTERIZE
+// #define PARALLEL_PROJECT
 
 using namespace dae;
 
@@ -30,15 +25,45 @@ Renderer::Renderer( SDL_Window* pWindow )
 	m_PixelAttributeBuffer = std::vector<std::pair<bool, VertexOut>>( m_Width * m_Height );
 }
 
-// The engine didn't actually come with any destructor so it was leaking memory :/
 Renderer::~Renderer()
 {
-	SDL_FreeSurface( m_pFrontBuffer );
 	SDL_FreeSurface( m_pBackBuffer );
 }
 
 void Renderer::Update( Timer* pTimer )
 {
+	const uint8_t* pKeyboardState{ SDL_GetKeyboardState( nullptr ) };
+
+	if ( pKeyboardState[SDL_SCANCODE_F4] && !m_F4Held )
+	{
+		m_F4Held = true;
+		m_ShowDepthBuffer = !m_ShowDepthBuffer;
+	}
+	if ( !pKeyboardState[SDL_SCANCODE_F4] )
+	{
+		m_F4Held = false;
+	}
+
+	if ( pKeyboardState[SDL_SCANCODE_F6] && !m_F6Held )
+	{
+		m_F6Held = true;
+		m_UseNormalMap = !m_UseNormalMap;
+	}
+	if ( !pKeyboardState[SDL_SCANCODE_F6] )
+	{
+		m_F6Held = false;
+	}
+
+	if ( !m_F7Held && pKeyboardState[SDL_SCANCODE_F7] )
+	{
+		m_LightingMode = static_cast<LightingMode>( ( static_cast<int>( m_LightingMode ) + 1 ) %
+													static_cast<int>( LightingMode::count ) );
+		m_F7Held = true;
+	}
+	else if ( m_F7Held && !pKeyboardState[SDL_SCANCODE_F7] )
+	{
+		m_F7Held = false;
+	}
 }
 
 void Renderer::Render( const Scene* pScene )
@@ -254,26 +279,6 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* pScene, const Matri
 		const int pixelBoundsTop{ static_cast<int>( std::floor( projectedTriangleBounds.top ) ) };
 		const int pixelBoundsBottom{ static_cast<int>( std::ceil( projectedTriangleBounds.bottom ) ) };
 
-#ifdef PARALLEL_RASTERIZE
-		std::vector<std::pair<int, int>> pixelIndices{};
-		pixelIndices.reserve( ( pixelBoundsBottom - pixelBoundsTop ) * ( pixelBoundsRight - pixelBoundsLeft ) );
-		for ( int px{ pixelBoundsLeft }; px < pixelBoundsRight; ++px )
-		{
-			for ( int py{ pixelBoundsTop }; py < pixelBoundsBottom; ++py )
-			{
-				pixelIndices.push_back( { px, py } );
-			}
-		}
-
-		std::for_each(
-			std::execution::par, pixelIndices.begin(), pixelIndices.end(), [&]( const std::pair<int, int> pxpy ) {
-				int px{ pxpy.first };
-				int py{ pxpy.second };
-				processPixel( px, py );
-			} );
-
-#endif
-#ifndef PARALLEL_RASTERIZE
 		// RASTERIZATION
 		for ( int px{ pixelBoundsLeft }; px < pixelBoundsRight; ++px )
 		{
@@ -282,7 +287,6 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* pScene, const Matri
 				processPixel( px, py );
 			}
 		}
-#endif
 
 		goToNextTriangleIndex();
 	}
@@ -297,9 +301,30 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* pScene, const Matri
 			{
 				continue;
 			}
+			if ( m_ShowDepthBuffer )
+			{
+				constexpr float depthMin{ 0.9985f };
+				constexpr float depthMax{ 1.f };
+				const float remappedDepth{ std::max(
+					1.f - ( m_DepthBufferPixels[bufferIndex] - depthMin ) / ( depthMax - depthMin ), 0.f ) };
+				ColorRGB finalColor{ remappedDepth, remappedDepth, remappedDepth };
 
-			const ColorRGB finalColor{ GetPixelColor(
-				mesh, m_PixelAttributeBuffer[bufferIndex].second, pScene->GetLights() ) };
+				finalColor.MaxToOne();
+
+				m_pBackBufferPixels[bufferIndex] = SDL_MapRGB( m_pBackBuffer->format,
+															   static_cast<uint8_t>( finalColor.r * 255 ),
+															   static_cast<uint8_t>( finalColor.g * 255 ),
+															   static_cast<uint8_t>( finalColor.b * 255 ) );
+
+				continue;
+			}
+
+			const ColorRGB finalColor{ GetPixelColor( mesh,
+													  m_PixelAttributeBuffer[bufferIndex].second,
+													  camera,
+													  pScene->GetLights(),
+													  m_LightingMode,
+													  m_UseNormalMap ) };
 
 			m_pBackBufferPixels[bufferIndex] = SDL_MapRGB( m_pBackBuffer->format,
 														   static_cast<uint8_t>( finalColor.r * 255 ),

@@ -9,6 +9,15 @@
 
 namespace dae
 {
+enum class LightingMode
+{
+	observedArea,
+	diffuse,
+	specular,
+	combined,
+	count,
+};
+
 struct Vertex
 {
 	Vector3 position{};
@@ -120,6 +129,19 @@ struct Mesh
 
 	Texture texture{};
 	Texture normalMap{};
+	Texture specularMap{};
+	Texture glossMap{};
+
+	void UpdateMesh()
+	{
+		for ( size_t index{}; index < vertices.size(); ++index )
+		{
+			Vertex transformedVertex{ vertices[index] };
+			transformedVertex.position = worldMatrix.TransformPoint( vertices[index].position );
+			transformedVertex.normal = worldMatrix.TransformVector( vertices[index].normal ).Normalized();
+			transformedVertices[index] = transformedVertex;
+		}
+	}
 };
 } // namespace dae
 #endif

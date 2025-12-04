@@ -11,7 +11,7 @@ class Camera final
 {
 public:
 	Camera() = default;
-	explicit Camera( const Vector3& origin, float fovAngle, float near = 1.f, float far = 1000.f );
+	explicit Camera( const Vector3& origin, float fovAngle, float near = 0.1f, float far = 100.f );
 
 	// Getters
 	const Matrix& GetCameraToWorld() const;

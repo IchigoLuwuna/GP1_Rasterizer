@@ -55,7 +55,13 @@ public:
 class SceneW5 final : public Scene
 {
 public:
+	virtual void Update( Timer* pTimer ) override;
 	virtual void Initialize() override;
+
+private:
+	float m_Yaw{};
+	bool m_IsRotating{ false };
+	bool m_F5Held{ false };
 };
 } // namespace dae
 

@@ -67,23 +67,23 @@ void Camera::Update( Timer* pTimer )
 	{
 		speedMultiplier *= 5.f;
 	}
-	if ( pKeyboardState[SDL_SCANCODE_W] )
+	if ( pKeyboardState[SDL_SCANCODE_W] || pKeyboardState[SDL_SCANCODE_UP] )
 	{
 		Move( Matrix::CreateRotationX( m_TotalPitch )
 				  .TransformVector( Matrix::CreateRotationY( m_TotalYaw )
 										.TransformVector( Vector3::UnitZ * deltaTime * speedMultiplier ) ) );
 	}
-	if ( pKeyboardState[SDL_SCANCODE_S] )
+	if ( pKeyboardState[SDL_SCANCODE_S] || pKeyboardState[SDL_SCANCODE_DOWN] )
 	{
 		Move( Matrix::CreateRotationX( m_TotalPitch )
 				  .TransformVector( Matrix::CreateRotationY( m_TotalYaw )
 										.TransformVector( -Vector3::UnitZ * deltaTime * speedMultiplier ) ) );
 	}
-	if ( pKeyboardState[SDL_SCANCODE_D] )
+	if ( pKeyboardState[SDL_SCANCODE_D] || pKeyboardState[SDL_SCANCODE_RIGHT] )
 	{
 		Move( Matrix::CreateRotationY( m_TotalYaw ).TransformVector( Vector3::UnitX * deltaTime * speedMultiplier ) );
 	}
-	if ( pKeyboardState[SDL_SCANCODE_A] )
+	if ( pKeyboardState[SDL_SCANCODE_A] || pKeyboardState[SDL_SCANCODE_LEFT] )
 	{
 		Move( Matrix::CreateRotationY( m_TotalYaw ).TransformVector( -Vector3::UnitX * deltaTime * speedMultiplier ) );
 	}

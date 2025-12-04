@@ -44,6 +44,15 @@ private:
 	int m_Width{};
 	int m_Height{};
 
+	LightingMode m_LightingMode{ LightingMode::combined };
+
+	bool m_ShowDepthBuffer{};
+	bool m_UseNormalMap{ true };
+
+	bool m_F4Held{};
+	bool m_F6Held{};
+	bool m_F7Held{};
+
 	void Project( const std::vector<Vertex>& verticesIn,
 				  std::vector<VertexOut>& verticesOut,
 				  const Camera& camera,

@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include <SDL_keyboard.h>
 #include "DataTypes.h"
 #include "Utils.h"
 using namespace dae;
@@ -127,10 +128,40 @@ void SceneW4::Initialize()
 }
 
 // Week 5 Scene
+void SceneW5::Update( Timer* pTimer )
+{
+	Scene::Update( pTimer );
+
+	const uint8_t* pKeyboardState{ SDL_GetKeyboardState( nullptr ) };
+
+	if ( !m_F5Held && pKeyboardState[SDL_SCANCODE_F5] )
+	{
+		m_IsRotating = !m_IsRotating;
+		m_F5Held = true;
+	}
+	else if ( m_F5Held && !pKeyboardState[SDL_SCANCODE_F5] )
+	{
+		m_F5Held = false;
+	}
+
+	if ( !m_IsRotating )
+	{
+		return;
+	}
+
+	m_Yaw += pTimer->GetElapsed();
+	m_Meshes[0].worldMatrix = Matrix::CreateRotationY( m_Yaw );
+
+	for ( auto& mesh : m_Meshes )
+	{
+		mesh.UpdateMesh();
+	}
+}
+
 void SceneW5::Initialize()
 {
-	const Vector3 cameraOrigin{ 0.f, 0.0f, -20.f };
-	constexpr float fovAngle{ 60.f };
+	const Vector3 cameraOrigin{ 0.f, 5.f, -64.f };
+	constexpr float fovAngle{ 45.f };
 
 	m_Camera.SetPos( cameraOrigin );
 	m_Camera.SetFovAngleDegrees( fovAngle );
@@ -142,22 +173,18 @@ void SceneW5::Initialize()
 	Utils::ParseOBJ( "./resources/vehicle.obj", mesh.vertices, mesh.indices );
 	mesh.primitiveTopology = PrimitiveTopology::TriangleList;
 
-	// mesh.worldMatrix = Matrix::CreateRotationY( 0.5f * PI );
+	mesh.transformedVertices = std::vector<Vertex>( mesh.vertices.size() );
 
-	for ( auto& vertex : mesh.vertices )
-	{
-		Vertex transformedVertex{ vertex };
-		transformedVertex.position = mesh.worldMatrix.TransformPoint( vertex.position );
-		transformedVertex.normal = mesh.worldMatrix.TransformVector( vertex.normal );
-		mesh.transformedVertices.push_back( transformedVertex );
-	}
+	mesh.UpdateMesh();
 
 	mesh.texture = Texture{ "./resources/vehicle_diffuse.png" };
 	mesh.normalMap = Texture{ "./resources/vehicle_normal.png" };
+	mesh.specularMap = Texture{ "./resources/vehicle_specular.png" };
+	mesh.glossMap = Texture{ "./resources/vehicle_gloss.png" };
 
 	meshes.push_back( std::move( mesh ) );
 
-	const Light light{ Vector3{ 1.f, -1.f, 1.f }.Normalized(), { 1.f, 1.f, 1.f }, 1.f, LightType::directional };
+	const Light light{ Vector3{ 0.577f, -0.577f, 0.577f }, { 1.f, 1.f, 1.f }, 1.f, LightType::directional };
 	m_Lights.push_back( light );
 
 	m_Meshes = std::move( meshes );
