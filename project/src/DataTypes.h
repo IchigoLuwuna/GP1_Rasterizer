@@ -57,6 +57,7 @@ struct Triangle_Out
 	Vector3 normal{};
 
 	const Texture* pTexture{};
+	const Texture* pNormalMap{};
 
 	Rectangle GetBounds()
 	{
@@ -98,6 +99,7 @@ struct Mesh
 	Matrix worldMatrix{};
 
 	Texture texture{};
+	Texture normalMap{};
 };
 } // namespace dae
 #endif
