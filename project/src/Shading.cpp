@@ -1,22 +1,79 @@
 #include "Shading.h"
 #include <cassert>
 #include "ColorRGB.h"
+#include "DataTypes.h"
+#include "Vector3.h"
 
 namespace dae
 {
-ColorRGB GetPixelColor( const Triangle_Out& triangle, const Vector3 baryCentricPosition )
+ColorRGB GetPixelColor( const Mesh& mesh, const VertexOut& pixelVertex, const std::vector<Light>& lights )
 {
-	const float viewSpaceDepthInterpolated{ 1.f / ( ( 1.f / triangle.v0.position.w ) * baryCentricPosition.x +
-													( 1.f / triangle.v1.position.w ) * baryCentricPosition.y +
-													( 1.f / triangle.v2.position.w ) * baryCentricPosition.z ) };
+	const ColorRGB diffuseColor{ mesh.texture.Sample( pixelVertex.uv ) };
+	const Vector3 pixelPos{ pixelVertex.position.x, pixelVertex.position.y, pixelVertex.position.w };
 
-	const Vector2 uvPosition{ ( triangle.v0.uv / triangle.v0.position.w * baryCentricPosition.x +
-								triangle.v1.uv / triangle.v1.position.w * baryCentricPosition.y +
-								triangle.v2.uv / triangle.v2.position.w * baryCentricPosition.z ) *
-							  viewSpaceDepthInterpolated };
+	if ( lights.empty() )
+	{
+		return diffuseColor;
+	}
 
-	const ColorRGB textureSample{ triangle.pTexture->Sample( uvPosition ) };
+	const Vector3 binormal{ Vector3::Cross( pixelVertex.normal, pixelVertex.tangent ).Normalized() };
+	const Matrix tangentAxisSpace{ pixelVertex.tangent, binormal, pixelVertex.normal, {} };
 
-	return textureSample;
+	const ColorRGB sampledNormalColor{ ( mesh.normalMap.Sample( pixelVertex.uv ) / 255.f * 2.f ) };
+	Vector3 sampledNormal{ sampledNormalColor.r, sampledNormalColor.g, sampledNormalColor.b };
+	sampledNormal = tangentAxisSpace.TransformVector( sampledNormal );
+	sampledNormal.Normalize();
+
+	ColorRGB finalColor{};
+	for ( auto& light : lights )
+	{
+		constexpr float diffuseReflectance{ 7.f }; // Hardcoded to make up for lack of lights
+
+		const float observedArea{ lightUtils::GetObservedArea( light, pixelPos, sampledNormal ) };
+		const ColorRGB radiance{ lightUtils::GetRadiance( light, pixelPos ) };
+		const ColorRGB lambertDiffuse{ ( diffuseColor * diffuseReflectance ) / PI };
+
+		finalColor += observedArea * radiance * lambertDiffuse;
+	}
+
+	finalColor.MaxToOne();
+
+	return finalColor;
 }
+
+namespace lightUtils
+{
+float GetObservedArea( const Light& light, const Vector3& position, const Vector3& normal )
+{
+	Vector3 dirToLight{};
+	switch ( light.type )
+	{
+	case LightType::point:
+		dirToLight = light.vector - position;
+		break;
+
+	case LightType::directional:
+		dirToLight = -light.vector;
+		break;
+	}
+
+	return std::max( Vector3::Dot( normal, dirToLight ), 0.f );
+}
+
+ColorRGB GetRadiance( const Light& light, const Vector3& target )
+{
+	switch ( light.type )
+	{
+	case LightType::point:
+		return { light.color * ( light.intensity / ( light.vector - target ).SqrMagnitude() ) };
+		break;
+
+	case LightType::directional:
+		return light.color * light.intensity;
+		break;
+	default:
+		return light.color * light.intensity;
+	}
+}
+} // namespace lightUtils
 } // namespace dae

@@ -37,10 +37,30 @@ struct Rectangle
 	float bottom{};
 };
 
-struct Triangle_Out
+struct TriangleWorld
 {
-	Triangle_Out() = default;
-	Triangle_Out( const VertexOut& v0, const VertexOut& v1, const VertexOut& v2 )
+	TriangleWorld() = default;
+	TriangleWorld( const Vertex& v0, const Vertex& v1, const Vertex& v2 )
+		: v0{ v0 }
+		, v1{ v1 }
+		, v2{ v2 }
+		, normal{
+			Vector3::Cross( Vector3( v0.position, v2.position ), Vector3( v0.position, v1.position ) ).Normalized()
+		}
+	{
+	}
+
+	Vertex v0{};
+	Vertex v1{};
+	Vertex v2{};
+
+	Vector3 normal{};
+};
+
+struct TriangleOut
+{
+	TriangleOut() = default;
+	TriangleOut( const VertexOut& v0, const VertexOut& v1, const VertexOut& v2 )
 		: v0{ v0 }
 		, v1{ v1 }
 		, v2{ v2 }
@@ -95,7 +115,7 @@ struct Mesh
 	std::vector<Vertex> transformedVertices{};
 	PrimitiveTopology primitiveTopology{ PrimitiveTopology::TriangleStrip };
 
-	std::vector<VertexOut> vertices_out{};
+	std::vector<VertexOut> verticesOut{};
 	Matrix worldMatrix{};
 
 	Texture texture{};

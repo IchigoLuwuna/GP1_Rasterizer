@@ -12,7 +12,7 @@
 #include "Shading.h"
 
 #define PARALLEL_PROJECT
-// #define PARALLEL_RASTERIZE
+//  #define PARALLEL_RASTERIZE
 
 using namespace dae;
 
@@ -27,6 +27,7 @@ Renderer::Renderer( SDL_Window* pWindow )
 	m_pBackBuffer = SDL_CreateRGBSurface( 0, m_Width, m_Height, 32, 0, 0, 0, 0 );
 	m_pBackBufferPixels = reinterpret_cast<uint32_t*>( m_pBackBuffer->pixels );
 	m_DepthBufferPixels = std::vector<float>( m_Width * m_Height );
+	m_PixelAttributeBuffer = std::vector<std::pair<bool, VertexOut>>( m_Width * m_Height );
 }
 
 // The engine didn't actually come with any destructor so it was leaking memory :/
@@ -40,7 +41,7 @@ void Renderer::Update( Timer* pTimer )
 {
 }
 
-void Renderer::Render( Scene* pScene )
+void Renderer::Render( const Scene* pScene )
 {
 	//@START
 	// Lock BackBuffer
@@ -76,9 +77,15 @@ void Renderer::Render( Scene* pScene )
 	SDL_UpdateWindowSurface( m_pWindow );
 }
 
-void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* scene, const Matrix& worldToCamera ) noexcept
+void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* pScene, const Matrix& worldToCamera ) noexcept
 {
-	const Camera& camera{ scene->GetCamera() };
+	const Camera& camera{ pScene->GetCamera() };
+
+	// Flush pixel attribute buffer
+	for ( auto& pixel : m_PixelAttributeBuffer )
+	{
+		pixel = {};
+	}
 
 	// PROJECTION
 	std::vector<VertexOut> verticesOut{};
@@ -108,13 +115,17 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* scene, const Matrix
 		}
 
 		// Construct triangle
-		Triangle_Out projectedTriangle{};
+		TriangleOut projectedTriangle{};
+		TriangleWorld worldTriangle{};
 		switch ( mesh.primitiveTopology )
 		{
 		case PrimitiveTopology::TriangleList:
-			projectedTriangle = Triangle_Out{ verticesOut[mesh.indices[index + 0]],
-											  verticesOut[mesh.indices[index + 1]],
-											  verticesOut[mesh.indices[index + 2]] };
+			projectedTriangle = TriangleOut{ verticesOut[mesh.indices[index + 0]],
+											 verticesOut[mesh.indices[index + 1]],
+											 verticesOut[mesh.indices[index + 2]] };
+			worldTriangle = TriangleWorld{ mesh.transformedVertices[mesh.indices[index + 0]],
+										   mesh.transformedVertices[mesh.indices[index + 1]],
+										   mesh.transformedVertices[mesh.indices[index + 2]] };
 			break;
 		case PrimitiveTopology::TriangleStrip:
 			// Check if mesh is correct size to be a strip
@@ -122,19 +133,26 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* scene, const Matrix
 			// Fix orientation for odd triangles
 			if ( index & 1 )
 			{
-				projectedTriangle = Triangle_Out{ verticesOut[mesh.indices[index + 0]],
-												  verticesOut[mesh.indices[index + 2]],
-												  verticesOut[mesh.indices[index + 1]] };
+				projectedTriangle = TriangleOut{ verticesOut[mesh.indices[index + 0]],
+												 verticesOut[mesh.indices[index + 2]],
+												 verticesOut[mesh.indices[index + 1]] };
+				worldTriangle = TriangleWorld{ mesh.transformedVertices[mesh.indices[index + 0]],
+											   mesh.transformedVertices[mesh.indices[index + 2]],
+											   mesh.transformedVertices[mesh.indices[index + 1]] };
 			}
 			else
 			{
-				projectedTriangle = Triangle_Out{ verticesOut[mesh.indices[index + 0]],
-												  verticesOut[mesh.indices[index + 1]],
-												  verticesOut[mesh.indices[index + 2]] };
+				projectedTriangle = TriangleOut{ verticesOut[mesh.indices[index + 0]],
+												 verticesOut[mesh.indices[index + 1]],
+												 verticesOut[mesh.indices[index + 2]] };
+				worldTriangle = TriangleWorld{ mesh.transformedVertices[mesh.indices[index + 0]],
+											   mesh.transformedVertices[mesh.indices[index + 1]],
+											   mesh.transformedVertices[mesh.indices[index + 2]] };
 			}
 			break;
 		}
 		projectedTriangle.pTexture = &mesh.texture;
+		projectedTriangle.pNormalMap = &mesh.normalMap;
 
 		if ( IsCullable( projectedTriangle ) )
 		{
@@ -151,7 +169,7 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* scene, const Matrix
 				return;
 			}
 
-			const float depthInterpolated{ 1.f /
+			const float interpolatedDepth{ 1.f /
 										   ( ( 1.f / projectedTriangle.v0.position.z ) * baryCentricPosition.x +
 											 ( 1.f / projectedTriangle.v1.position.z ) * baryCentricPosition.y +
 											 ( 1.f / projectedTriangle.v2.position.z ) * baryCentricPosition.z ) };
@@ -159,20 +177,76 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* scene, const Matrix
 			const int bufferIndex{ px + ( py * m_Width ) };
 
 			// Check Depth Buffer
-			if ( depthInterpolated > m_DepthBufferPixels[bufferIndex] )
+			if ( interpolatedDepth > m_DepthBufferPixels[bufferIndex] )
 			{
 				return;
 			}
-			m_DepthBufferPixels[bufferIndex] = depthInterpolated;
+			m_DepthBufferPixels[bufferIndex] = interpolatedDepth;
 
-			ColorRGB finalColor{ GetPixelColor( projectedTriangle, baryCentricPosition, scene->GetLights() ) };
+			const float viewSpaceDepthInterpolated{
+				1.f / ( ( 1.f / projectedTriangle.v0.position.w ) * baryCentricPosition.x +
+						( 1.f / projectedTriangle.v1.position.w ) * baryCentricPosition.y +
+						( 1.f / projectedTriangle.v2.position.w ) * baryCentricPosition.z )
+			};
 
-			finalColor.MaxToOne();
+			Vector4 interpolatedPosition{};
+			Vector3 interpolatedNormal{};
+			Vector3 interpolatedTangent{};
 
-			m_pBackBufferPixels[bufferIndex] = SDL_MapRGB( m_pBackBuffer->format,
-														   static_cast<uint8_t>( finalColor.r * 255 ),
-														   static_cast<uint8_t>( finalColor.g * 255 ),
-														   static_cast<uint8_t>( finalColor.b * 255 ) );
+			// Interpolate
+			interpolatedPosition.x = worldTriangle.v0.position.x * baryCentricPosition.x +
+									 worldTriangle.v1.position.x * baryCentricPosition.y +
+									 worldTriangle.v2.position.x * baryCentricPosition.z;
+			interpolatedPosition.y = worldTriangle.v0.position.y * baryCentricPosition.x +
+									 worldTriangle.v1.position.y * baryCentricPosition.y +
+									 worldTriangle.v2.position.y * baryCentricPosition.z;
+			interpolatedPosition.w = worldTriangle.v0.position.z * baryCentricPosition.x +
+									 worldTriangle.v1.position.z * baryCentricPosition.y +
+									 worldTriangle.v2.position.z * baryCentricPosition.z;
+			interpolatedPosition.z = interpolatedDepth;
+
+			const ColorRGB interpolatedColor{
+				( projectedTriangle.v0.color / projectedTriangle.v0.position.w * baryCentricPosition.x +
+				  projectedTriangle.v1.color / projectedTriangle.v1.position.w * baryCentricPosition.y +
+				  projectedTriangle.v2.color / projectedTriangle.v2.position.w * baryCentricPosition.z ) *
+				viewSpaceDepthInterpolated
+			};
+
+			const Vector2 interpolatedUV{
+				( projectedTriangle.v0.uv / projectedTriangle.v0.position.w * baryCentricPosition.x +
+				  projectedTriangle.v1.uv / projectedTriangle.v1.position.w * baryCentricPosition.y +
+				  projectedTriangle.v2.uv / projectedTriangle.v2.position.w * baryCentricPosition.z ) *
+				viewSpaceDepthInterpolated
+			};
+
+			interpolatedNormal.x = worldTriangle.v0.normal.x * baryCentricPosition.x +
+								   worldTriangle.v1.normal.x * baryCentricPosition.y +
+								   worldTriangle.v2.normal.x * baryCentricPosition.z;
+			interpolatedNormal.y = worldTriangle.v0.normal.y * baryCentricPosition.x +
+								   worldTriangle.v1.normal.y * baryCentricPosition.y +
+								   worldTriangle.v2.normal.y * baryCentricPosition.z;
+			interpolatedNormal.z = worldTriangle.v0.normal.z * baryCentricPosition.x +
+								   worldTriangle.v1.normal.z * baryCentricPosition.y +
+								   worldTriangle.v2.normal.z * baryCentricPosition.z;
+			interpolatedNormal.Normalize();
+
+			interpolatedTangent.x = worldTriangle.v0.tangent.x * baryCentricPosition.x +
+									worldTriangle.v1.tangent.x * baryCentricPosition.y +
+									worldTriangle.v2.tangent.x * baryCentricPosition.z;
+			interpolatedTangent.y = worldTriangle.v0.tangent.y * baryCentricPosition.x +
+									worldTriangle.v1.tangent.y * baryCentricPosition.y +
+									worldTriangle.v2.tangent.y * baryCentricPosition.z;
+			interpolatedTangent.z = worldTriangle.v0.tangent.z * baryCentricPosition.x +
+									worldTriangle.v1.tangent.z * baryCentricPosition.y +
+									worldTriangle.v2.tangent.z * baryCentricPosition.z;
+			interpolatedTangent.Normalize();
+
+			VertexOut interpolatedVertex{
+				interpolatedPosition, interpolatedColor, interpolatedUV, interpolatedNormal, interpolatedTangent
+			};
+
+			m_PixelAttributeBuffer[bufferIndex].first = true;
+			m_PixelAttributeBuffer[bufferIndex].second = interpolatedVertex;
 		} };
 
 		const int pixelBoundsLeft{ static_cast<int>( std::floor( projectedTriangleBounds.left ) ) };
@@ -211,6 +285,27 @@ void Renderer::RasterizeMesh( const Mesh& mesh, const Scene* scene, const Matrix
 #endif
 
 		goToNextTriangleIndex();
+	}
+
+	for ( int px{}; px < m_Width; ++px )
+	{
+		for ( int py{}; py < m_Height; ++py )
+		{
+			const int bufferIndex{ px + ( py * m_Width ) };
+
+			if ( !m_PixelAttributeBuffer[bufferIndex].first )
+			{
+				continue;
+			}
+
+			const ColorRGB finalColor{ GetPixelColor(
+				mesh, m_PixelAttributeBuffer[bufferIndex].second, pScene->GetLights() ) };
+
+			m_pBackBufferPixels[bufferIndex] = SDL_MapRGB( m_pBackBuffer->format,
+														   static_cast<uint8_t>( finalColor.r * 255 ),
+														   static_cast<uint8_t>( finalColor.g * 255 ),
+														   static_cast<uint8_t>( finalColor.b * 255 ) );
+		}
 	}
 }
 
@@ -279,7 +374,7 @@ void Renderer::Project( const std::vector<Vertex>& verticesIn,
 #endif
 }
 
-bool Renderer::IsInPixel( const Triangle_Out& triangle, int px, int py, Vector3& baryCentricPosition ) noexcept
+bool Renderer::IsInPixel( const TriangleOut& triangle, int px, int py, Vector3& baryCentricPosition ) noexcept
 {
 	const Vector2 screenSpace{ px + 0.5f, py + 0.5f };
 
@@ -325,7 +420,7 @@ bool Renderer::IsInPixel( const Triangle_Out& triangle, int px, int py, Vector3&
 	return true;
 }
 
-bool Renderer::IsCullable( const Triangle_Out& triangle )
+bool Renderer::IsCullable( const TriangleOut& triangle ) noexcept
 {
 	// Backface Culling
 	if ( triangle.normal.z > 0.f ) // positive Z is forward -> away from the screen

@@ -142,6 +142,16 @@ void SceneW5::Initialize()
 	Utils::ParseOBJ( "./resources/vehicle.obj", mesh.vertices, mesh.indices );
 	mesh.primitiveTopology = PrimitiveTopology::TriangleList;
 
+	// mesh.worldMatrix = Matrix::CreateRotationY( 0.5f * PI );
+
+	for ( auto& vertex : mesh.vertices )
+	{
+		Vertex transformedVertex{ vertex };
+		transformedVertex.position = mesh.worldMatrix.TransformPoint( vertex.position );
+		transformedVertex.normal = mesh.worldMatrix.TransformVector( vertex.normal );
+		mesh.transformedVertices.push_back( transformedVertex );
+	}
+
 	mesh.texture = Texture{ "./resources/vehicle_diffuse.png" };
 	mesh.normalMap = Texture{ "./resources/vehicle_normal.png" };
 

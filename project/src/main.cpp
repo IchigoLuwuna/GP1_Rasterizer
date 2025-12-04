@@ -63,7 +63,7 @@ int main( int argc, char* args[] )
 	*/
 
 	// Initialize scene
-	auto upScene{ std::make_unique<SceneW4>() };
+	auto upScene{ std::make_unique<SceneW5>() };
 	upScene->Initialize();
 
 	// Start loop

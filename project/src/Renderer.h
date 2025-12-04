@@ -27,7 +27,7 @@ public:
 	Renderer& operator=( Renderer&& ) noexcept = delete;
 
 	void Update( Timer* pTimer );
-	void Render( Scene* pScene );
+	void Render( const Scene* pScene );
 
 	bool SaveBufferToImage() const;
 
@@ -38,7 +38,8 @@ private:
 	SDL_Surface* m_pBackBuffer{ nullptr };
 	uint32_t* m_pBackBufferPixels{};
 
-	std::vector<float> m_DepthBufferPixels;
+	std::vector<float> m_DepthBufferPixels{};
+	std::vector<std::pair<bool, VertexOut>> m_PixelAttributeBuffer{};
 
 	int m_Width{};
 	int m_Height{};
@@ -48,9 +49,11 @@ private:
 				  const Camera& camera,
 				  const Matrix& modelToWorld,
 				  const Matrix& worldToCamera ) const noexcept;
-	void RasterizeMesh( const Mesh& mesh, const Scene* Scene, const Matrix& worldToCamera ) noexcept;
-	bool IsInPixel( const Triangle_Out& triangle, int px, int py, Vector3& baryCentricPosition ) noexcept;
-	bool IsCullable( const Triangle_Out& triangle );
+	void RasterizeMesh( const Mesh& mesh, const Scene* pScene, const Matrix& worldToCamera ) noexcept;
+	void ShadePixel( int px, int py, const VertexOut& attributes );
+
+	bool IsInPixel( const TriangleOut& triangle, int px, int py, Vector3& baryCentricPosition ) noexcept;
+	bool IsCullable( const TriangleOut& triangle ) noexcept;
 };
 } // namespace dae
 
