@@ -7,7 +7,7 @@
 #include "Renderer.h"
 #include "Scene.h"
 
-// #define PARALLEL_PROJECT
+#define PARALLEL_PROJECT
 
 using namespace dae;
 
