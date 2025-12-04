@@ -51,6 +51,12 @@ class SceneW4 final : public Scene
 public:
 	virtual void Initialize() override;
 };
+
+class SceneW5 final : public Scene
+{
+public:
+	virtual void Initialize() override;
+};
 } // namespace dae
 
 #endif

@@ -125,3 +125,30 @@ void SceneW4::Initialize()
 
 	m_Meshes = std::move( meshes );
 }
+
+// Week 5 Scene
+void SceneW5::Initialize()
+{
+	const Vector3 cameraOrigin{ 0.f, 0.0f, -20.f };
+	constexpr float fovAngle{ 60.f };
+
+	m_Camera.SetPos( cameraOrigin );
+	m_Camera.SetFovAngleDegrees( fovAngle );
+	m_Camera.Rotate( 0.f, 0.f );
+
+	std::vector<Mesh> meshes{};
+
+	Mesh mesh{};
+	Utils::ParseOBJ( "./resources/vehicle.obj", mesh.vertices, mesh.indices );
+	mesh.primitiveTopology = PrimitiveTopology::TriangleList;
+
+	mesh.texture = Texture{ "./resources/vehicle_diffuse.png" };
+	mesh.normalMap = Texture{ "./resources/vehicle_normal.png" };
+
+	meshes.push_back( std::move( mesh ) );
+
+	const Light light{ Vector3{ 1.f, -1.f, 1.f }.Normalized(), { 1.f, 1.f, 1.f }, 1.f, LightType::directional };
+	m_Lights.push_back( light );
+
+	m_Meshes = std::move( meshes );
+}
